@@ -1,0 +1,168 @@
+import React, { useState } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import {
+  Box,
+  Typography,
+  Button,
+  Alert,
+  CircularProgress,
+  Paper
+} from '@mui/material';
+import {
+  Download,
+  Print,
+  Email,
+  ArrowBack
+} from '@mui/icons-material';
+import MainLayout from '../components/layout/MainLayout';
+import ComprehensiveReport from '../components/document-review/reports/ComprehensiveReport';
+import { useSubmissionDetail } from '../hooks/useSubmissions';
+import { ROUTES } from '../config/routes';
+
+export default function ReportPage() {
+  const { submissionId } = useParams();
+  const navigate = useNavigate();
+  const { submission, loading, error } = useSubmissionDetail(submissionId);
+  const [downloading, setDownloading] = useState(false);
+
+  if (loading) {
+    return (
+      <MainLayout>
+        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '50vh' }}>
+          <CircularProgress />
+        </Box>
+      </MainLayout>
+    );
+  }
+
+  if (error) {
+    return (
+      <MainLayout>
+        <Alert severity="error">{error}</Alert>
+      </MainLayout>
+    );
+  }
+
+  if (!submission?.comprehensive_reports?.[0]) {
+    return (
+      <MainLayout>
+        <Alert severity="warning">
+          Report not yet available. Please check back later.
+        </Alert>
+      </MainLayout>
+    );
+  }
+
+  const report = submission.comprehensive_reports[0].report_data;
+  const analyses = (submission.analysis_results || []).map(ar => ({
+    ...ar,
+    file_name: ar.uploaded_documents?.file_name || ar.file_name || `Document`,
+  }));
+
+  const handleDownloadPDF = async () => {
+    setDownloading(true);
+    try {
+      // TODO: Implement PDF generation
+      alert('PDF download will be implemented in next phase');
+    } catch (err) {
+      console.error('Error downloading PDF:', err);
+    } finally {
+      setDownloading(false);
+    }
+  };
+
+  const handlePrint = () => {
+    window.print();
+  };
+
+  const handleEmail = () => {
+    // TODO: Implement email functionality
+    alert('Email functionality will be implemented in next phase');
+  };
+
+  return (
+    <MainLayout>
+      <Box sx={{ maxWidth: 1200, mx: 'auto' }}>
+        {/* Header */}
+        <Paper sx={{ p: 3, mb: 3, '@media print': { boxShadow: 'none' } }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+            <Button
+              startIcon={<ArrowBack />}
+              onClick={() => navigate(ROUTES.DASHBOARD)}
+              sx={{ '@media print': { display: 'none' } }}
+            >
+              Back to Dashboard
+            </Button>
+          </Box>
+
+          <Typography variant="h4" gutterBottom>
+            Estate Planning Document Review Report
+          </Typography>
+
+          <Typography variant="body2" color="text.secondary" gutterBottom>
+            Generated: {new Date(submission.comprehensive_reports[0].generated_at || submission.comprehensive_reports[0].created_at).toLocaleString()}
+          </Typography>
+
+          {/* Action Buttons */}
+          <Box sx={{ display: 'flex', gap: 2, mt: 2, '@media print': { display: 'none' } }}>
+            <Button
+              variant="contained"
+              startIcon={<Download />}
+              onClick={handleDownloadPDF}
+              disabled={downloading}
+            >
+              {downloading ? 'Generating...' : 'Download PDF'}
+            </Button>
+
+            <Button
+              variant="outlined"
+              startIcon={<Print />}
+              onClick={handlePrint}
+            >
+              Print
+            </Button>
+
+            <Button
+              variant="outlined"
+              startIcon={<Email />}
+              onClick={handleEmail}
+            >
+              Email Report
+            </Button>
+          </Box>
+        </Paper>
+
+        {/* Attorney Review Status */}
+        {!submission.attorney_reviewed && (
+          <Alert severity="warning" sx={{ mb: 3, '@media print': { display: 'none' } }}>
+            This report is pending attorney review. Final recommendations may change after professional review.
+          </Alert>
+        )}
+
+        {submission.attorney_reviewed && submission.attorney_notes && (
+          <Alert severity="info" sx={{ mb: 3 }}>
+            <Typography variant="subtitle2" gutterBottom>
+              Attorney Notes:
+            </Typography>
+            <Typography variant="body2">
+              {submission.attorney_notes}
+            </Typography>
+          </Alert>
+        )}
+
+        {/* Comprehensive Report */}
+        <ComprehensiveReport report={report} analyses={analyses} />
+
+        {/* Footer Disclaimer */}
+        <Paper sx={{ p: 3, mt: 3, bgcolor: 'grey.100' }}>
+          <Typography variant="caption" color="text.secondary">
+            <strong>Disclaimer:</strong> This report is generated by AI analysis and should not be considered 
+            legal advice. Please consult with a qualified estate planning attorney to review these recommendations 
+            and implement any changes to your estate plan. The analysis is based on the documents provided and 
+            may not reflect your complete estate planning needs.
+          </Typography>
+        </Paper>
+      </Box>
+    </MainLayout>
+  );
+}
